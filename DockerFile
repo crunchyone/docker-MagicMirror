@@ -1,12 +1,11 @@
-FROM node:24-bullseye
+FROM node:22.14.0-bullseye
 
-# Install system dependencies
+# Install system dependencies and build tools
 RUN set -e; \
     apt update; \
-    apt install -y gettext git tzdata; \
+    apt install -y gettext git tzdata build-essential python3 make g++; \
     rm -rf /var/lib/apt/lists/*
 
-# Set the timezone to Calgary (America/Edmonton)
 ENV TZ=America/Edmonton
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
@@ -22,8 +21,11 @@ RUN git clone -b master https://github.com/MagicMirrorOrg/MagicMirror .
 RUN cp -R modules /opt/default_modules
 RUN cp -R config /opt/default_config
 
-# Install MagicMirror dependencies
-RUN npm install --unsafe-perm --silent
+# Clean npm cache
+RUN npm cache clean --force
+
+# Install MagicMirror dependencies with verbose output for debugging
+RUN npm install --unsafe-perm --verbose
 
 # Clone MMM-CalendarExt3 module into the modules folder
 RUN git clone https://github.com/MMRIZE/MMM-CalendarExt3.git /opt/magic_mirror/modules/MMM-CalendarExt3
@@ -39,16 +41,12 @@ RUN git clone https://github.com/AdamMoses-GitHub/MMM-ImageSlideshow.git /opt/ma
 # Expose the volumes for css, modules, and config
 VOLUME [ "/opt/magic_mirror/css/", "/opt/magic_mirror/modules", "/opt/magic_mirror/config" ]
 
-# Return to the main MagicMirror directory
 WORKDIR /opt/magic_mirror
 
-# Copy the custom configuration and entrypoint script
 COPY mm-docker-config.js docker-entrypoint.sh ./
 RUN chmod +x ./docker-entrypoint.sh
 
-# Expose the port MagicMirror runs on
 EXPOSE 8282
 
-# Entry point and command for the container
 ENTRYPOINT ["./docker-entrypoint.sh"]
 CMD ["node", "serveronly"]
